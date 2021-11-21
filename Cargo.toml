@@ -1,6 +1,6 @@
 [package]
 name = "pid-loop"
-description = "PID loop for `no_std` targets"
+description = "Discrete PID loop for `no_std` targets"
 authors = ["Vitaly Domnikov <oss@vitaly.codes>"]
 edition = "2021"
 license = "MIT/Apache-2.0"

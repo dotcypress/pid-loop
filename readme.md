@@ -1,6 +1,6 @@
 # pid-loop
 
-🎛 PID loop for `no_std` targets.
+🎛 Discrete PID loop for `no_std` targets.
 
 ## License
 

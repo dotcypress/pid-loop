@@ -1,6 +1,6 @@
-//! A tiny `no_std` PID controller library.
+//! A tiny `no_std` discrete PID controller library.
 //!
-//! This crate implements the classic PID loop over abstracted data type.
+//! This crate implements the classic discrete PID loop over abstract number type.
 //!
 //! # Introduction
 //!
@@ -30,7 +30,7 @@
 #![deny(nonstandard_style, future_incompatible, rust_2018_idioms)]
 use core::ops::*;
 
-/// PID controller
+/// Discrete PID controller
 ///
 /// # Examples
 ///
@@ -44,16 +44,10 @@ use core::ops::*;
 /// fn measure() -> f64 { todo!() }
 /// ```
 pub struct PID<F> {
-    /// Proportional gain.
-    pub kp: F,
-    /// Integral gain.
-    pub ki: F,
-    /// Derivative gain.
-    pub kd: F,
-    last_error: F,
-    error_sum: F,
-    min_error_sum: Option<F>,
-    max_error_sum: Option<F>,
+    kp: F,
+    ki: F,
+    kd: F,
+    errors: [F; 3],
 }
 
 impl<F> PID<F>
@@ -71,15 +65,36 @@ where
     /// let mut controller = PID::<f32>::new(0.7, 0.034, 0.084);
     /// ```
     pub fn new(kp: impl Into<F>, ki: impl Into<F>, kd: impl Into<F>) -> Self {
-        Self {
-            kp: kp.into(),
-            ki: ki.into(),
-            kd: kd.into(),
-            last_error: F::default(),
-            error_sum: F::default(),
-            min_error_sum: None,
-            max_error_sum: None,
-        }
+        let mut pid = Self {
+            kp: F::default(),
+            ki: F::default(),
+            kd: F::default(),
+            errors: [F::default(); 3],
+        };
+        pid.set_config(kp, ki, kd);
+        pid
+    }
+
+    /// Set loop coefficients.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![allow(unused_assignments)]
+    /// use pid_loop::PID;
+    ///
+    /// let target = 40.0;
+    /// let mut controller = PID::<f32>::new(1.7, 0.34, 0.4);
+    /// controller.set_config(0.7, 0.34, 0.4);
+    /// ```
+    pub fn set_config(&mut self, kp: impl Into<F>, ki: impl Into<F>, kd: impl Into<F>) {
+        let kp = kp.into();
+        let ki = ki.into();
+        let kd = kd.into();
+
+        self.kp = kp + ki + kd;
+        self.ki = F::default() - kp - (kd * kd);
+        self.kd = kd;
     }
 
     /// Reset controller internal state.
@@ -97,40 +112,7 @@ where
     ///
     /// ```
     pub fn reset(&mut self) {
-        self.last_error = F::default();
-        self.error_sum = F::default();
-    }
-
-    /// Set minimum limit for error sum.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![allow(unused_assignments)]
-    /// use pid_loop::PID;
-    ///
-    /// let target = 30;
-    /// let mut controller = PID::<i128>::new(7, 34, 4);
-    /// controller.set_min_error_sum(Some(-300));
-    /// ```
-    pub fn set_min_error_sum(&mut self, min: Option<F>) {
-        self.min_error_sum = min;
-    }
-
-    /// Set maximum limit for error sum.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![allow(unused_assignments)]
-    /// use pid_loop::PID;
-    ///
-    /// let target = 30.0;
-    /// let mut controller = PID::<f32>::new(0.7, 0.034, 0.084);
-    /// controller.set_max_error_sum(Some(300.0));
-    /// ```
-    pub fn set_max_error_sum(&mut self, max: Option<F>) {
-        self.max_error_sum = max;
+        self.errors = [F::default(); 3]
     }
 
     /// Push next measurement into the controller and return correction.
@@ -146,25 +128,9 @@ where
     /// let correction = controller.next(target, 42.0);
     /// ```
     pub fn next(&mut self, sp: impl Into<F>, fb: impl Into<F>) -> F {
-        let error = sp.into() - fb.into();
-        let error_delta = error - self.last_error;
-        self.last_error = error;
-
-        let error_sum = self.error_sum + error;
-        let error_sum = match &self.max_error_sum {
-            Some(max) if &error_sum > max => *max,
-            _ => error_sum,
-        };
-        let error_sum = match &self.min_error_sum {
-            Some(min) if &error_sum < min => *min,
-            _ => error_sum,
-        };
-        self.error_sum = error_sum;
-
-        let p = error * self.kp;
-        let i = error_sum * self.ki;
-        let d = error_delta * self.kd;
-
-        p + i + d
+        self.errors[2] = self.errors[1];
+        self.errors[1] = self.errors[0];
+        self.errors[0] = sp.into() - fb.into();
+        self.kp * self.errors[0] + self.ki * self.errors[1] + self.kd * self.errors[2]
     }
 }
