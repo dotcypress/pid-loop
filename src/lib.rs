@@ -54,6 +54,7 @@ pub struct PID<F, const W: usize> {
     pub kf: F,
     last_error_idx: usize,
     errors: [F; W],
+    prev_sp: F,
 }
 
 impl<F, const W: usize> PID<F, W>
@@ -76,9 +77,10 @@ where
             kp: kp.into(),
             ki: ki.into(),
             kd: kd.into(),
-            kf: kd.into(),
+            kf: kf.into(),
             errors: [F::default(); W],
             last_error_idx: 0,
+            prev_sp: F::default(),
         }
     }
 
@@ -99,6 +101,7 @@ where
     pub fn reset(&mut self) {
         self.last_error_idx = 0;
         self.errors = [F::default(); W];
+        self.prev_sp = F::default();
     }
 
     /// Push next measurement into the controller and return correction.
@@ -114,7 +117,8 @@ where
     /// let correction = controller.next(target, 42.0);
     /// ```
     pub fn next(&mut self, sp: impl Into<F>, fb: impl Into<F>) -> F {
-        let error = sp.into() - fb.into();
+        let sp_f = sp.into();
+        let error = sp_f - fb.into();
 
         let error_delta = error - self.errors[self.last_error_idx];
         self.last_error_idx += 1;
@@ -127,8 +131,8 @@ where
         let p = self.kp * error;
         let i = self.ki * err_history;
         let d = self.kd * error_delta;
-        let f = self.kf * sp.into();
-
+        let f = self.kf * (sp_f - self.prev_sp) ;
+        self.prev_sp = sp_f;
         p + i + d + f
     }
 }
