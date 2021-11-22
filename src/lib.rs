@@ -50,6 +50,8 @@ pub struct PID<F, const W: usize> {
     pub ki: F,
     /// Derivative gain.
     pub kd: F,
+    ///Feed forward gain
+    pub kf: F,
     last_error_idx: usize,
     errors: [F; W],
 }
@@ -68,12 +70,13 @@ where
     ///
     /// let mut controller = PID::<f32, 1>::new(0.7, 0.034, 0.084);
     /// ```
-    pub fn new(kp: impl Into<F>, ki: impl Into<F>, kd: impl Into<F>) -> Self {
+    pub fn new(kp: impl Into<F>, ki: impl Into<F>, kd: impl Into<F>, kf: impl Into<F>) -> Self {
         assert!(W > 0);
         Self {
             kp: kp.into(),
             ki: ki.into(),
             kd: kd.into(),
+            kf: kd.into(),
             errors: [F::default(); W],
             last_error_idx: 0,
         }
@@ -124,7 +127,8 @@ where
         let p = self.kp * error;
         let i = self.ki * err_history;
         let d = self.kd * error_delta;
+        let f = self.kf * sp.into();
 
-        p + i + d
+        p + i + d + f
     }
 }
