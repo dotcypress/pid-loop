@@ -122,7 +122,7 @@ where
     /// use pid_loop::PID;
     ///
     /// let target = 30.0;
-    /// let mut controller = PID::<f64, 1>::new(0.7, 0.034, 0.084, 0.1, 0.0);
+    /// let mut controller = PID::<f64, 1>::new(0.7, 0.034, 0.084, 0.1, 0.1);
     /// let correction = controller.next(target, 42.0);
     /// ```
     pub fn next(&mut self, sp: impl Into<F>, fb: impl Into<F>) -> F {
@@ -146,6 +146,7 @@ where
         let d = self.kd * error_delta;
         let f = self.kf * sp_delta;
         let v = self.kv * fb;
+
         p + i + d + f + v
     }
 }
