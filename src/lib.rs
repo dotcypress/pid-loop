@@ -50,9 +50,9 @@ pub struct PID<F, const W: usize> {
     pub ki: F,
     /// Derivative gain.
     pub kd: F,
-    ///Feed forward gain
+    /// Feed forward gain
     pub kf: F,
-    ///Velocity
+    /// Velocity
     pub kv: F,
     last_sp: F,
     last_error_idx: usize,
