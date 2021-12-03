@@ -57,6 +57,7 @@ pub struct PID<F, const W: usize> {
     last_sp: F,
     last_error_idx: usize,
     errors: [F; W],
+    err_history: F,
 }
 
 impl<F, const W: usize> PID<F, W>
@@ -89,7 +90,8 @@ where
             kv: kv.into(),
             last_sp: F::default(),
             errors: [F::default(); W],
-            last_error_idx: 0,
+            last_error_idx: usize::default(),
+            err_history: F::default(),
         }
     }
 
@@ -109,7 +111,7 @@ where
     /// ```
     pub fn reset(&mut self) {
         self.last_sp = F::default();
-        self.last_error_idx = 0;
+        self.last_error_idx = usize::default();
         self.errors = [F::default(); W];
     }
 
@@ -130,23 +132,35 @@ where
         let fb = fb.into();
         let error = sp - fb;
 
-        let error_delta = error - self.errors[self.last_error_idx];
-        self.last_error_idx += 1;
-        if self.last_error_idx >= W {
-            self.last_error_idx = 0
-        }
-        self.errors[self.last_error_idx] = error;
-        let err_history = self.errors.iter().fold(F::default(), |acc, i| acc + *i);
+        let error_delta = error - self.current_error();
+        self.push_error(error);
 
         let sp_delta = sp - self.last_sp;
         self.last_sp = sp;
 
         let p = self.kp * error;
-        let i = self.ki * err_history;
+        let i = self.ki * self.err_history;
         let d = self.kd * error_delta;
         let f = self.kf * sp_delta;
         let v = self.kv * fb;
 
         p + i + d + f + v
+    }
+
+    fn current_error(&self) -> F {
+        self.errors[self.last_error_idx]
+    }
+
+    fn push_error(&mut self, error: F) {
+        self.last_error_idx += 1;
+        if self.last_error_idx >= W {
+            self.last_error_idx = 0;
+        }
+
+        // This reads a little funny, as the "current error" is actually the oldest error in the
+        // error ring buffer, but before being overwritten by the newest error
+        self.err_history = self.err_history - self.current_error();
+        self.err_history = self.err_history + error;
+        self.errors[self.last_error_idx] = error;
     }
 }
