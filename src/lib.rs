@@ -4,7 +4,7 @@
 //!
 //! # Introduction
 //!
-//! A proportional–integral–derivative controller is a control loop mechanism
+//! A proportional-integral-derivative controller is a control loop mechanism
 //! employing feedback that is widely used in industrial control systems
 //! and a variety of other applications requiring continuously modulated control.
 //!
@@ -132,7 +132,7 @@ where
         let fb = fb.into();
         let error = sp - fb;
 
-        let error_delta = error - self.current_error();
+        let error_delta = error - self.errors[self.last_error_idx];
         self.push_error(error);
 
         let sp_delta = sp - self.last_sp;
@@ -147,19 +147,13 @@ where
         p + i + d + f + v
     }
 
-    fn current_error(&self) -> F {
-        self.errors[self.last_error_idx]
-    }
-
     fn push_error(&mut self, error: F) {
         self.last_error_idx += 1;
         if self.last_error_idx >= W {
             self.last_error_idx = 0;
         }
 
-        // This reads a little funny, as the "current error" is actually the oldest error in the
-        // error ring buffer, but before being overwritten by the newest error
-        self.err_history = self.err_history - self.current_error();
+        self.err_history = self.err_history - self.errors[self.last_error_idx];
         self.err_history = self.err_history + error;
         self.errors[self.last_error_idx] = error;
     }
