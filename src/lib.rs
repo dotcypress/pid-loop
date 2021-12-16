@@ -111,8 +111,9 @@ where
     /// ```
     pub fn reset(&mut self) {
         self.last_sp = F::default();
-        self.last_error_idx = usize::default();
+        self.err_history = F::default();
         self.errors = [F::default(); W];
+        self.last_error_idx = usize::default();
     }
 
     /// Push next measurement into the controller and return correction.
